@@ -61,7 +61,6 @@ pub fn part_one(input: &str) -> Option<u64> {
     let mut accessible = 0;
 
     for r in 0..board.rows as i32 {
-        // println!("foo");
         for c in 0..board.cols as i32 {
             if board.get(&(r as usize, c as usize)) != ROLL_TILE {
                 // Not a roll, no need to count
@@ -69,9 +68,7 @@ pub fn part_one(input: &str) -> Option<u64> {
             }
             let mut occupied_adj = 0;
             for dr in -1i32..=1 {
-                // println!("baz");
                 for dc in -1i32..=1 {
-                    // println!("ham");
                     if dr == 0 && dc == 0 {
                         continue; // Same roll
                     }
@@ -98,8 +95,6 @@ pub fn part_one(input: &str) -> Option<u64> {
                 }
             }
 
-            // let free_adj = 8 - occupied_adj;
-            // println!("free adjacent: {}", free_adj);
             if occupied_adj < 4 {
                 println!("available: {:?}", (r, c));
                 accessible += 1;
@@ -114,7 +109,6 @@ fn num_removable(board: Board) -> usize {
     let mut removable: Vec<Coord> = vec![];
 
     for r in 0..board.rows as i32 {
-        // println!("foo");
         for c in 0..board.cols as i32 {
             let coord = (r as usize, c as usize);
             if board.get(&coord) != ROLL_TILE {
@@ -123,9 +117,7 @@ fn num_removable(board: Board) -> usize {
             }
             let mut occupied_adj = 0;
             for dr in -1i32..=1 {
-                // println!("baz");
                 for dc in -1i32..=1 {
-                    // println!("ham");
                     if dr == 0 && dc == 0 {
                         continue; // Same roll
                     }
