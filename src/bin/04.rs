@@ -96,7 +96,6 @@ pub fn part_one(input: &str) -> Option<u64> {
             }
 
             if occupied_adj < 4 {
-                println!("available: {:?}", (r, c));
                 accessible += 1;
             }
         }
