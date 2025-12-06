@@ -1,11 +1,23 @@
 advent_of_code::solution!(2);
 
+use itertools::Itertools;
 use std::cmp;
 
-fn is_repeated(s: &str) -> bool {
-    let mid = s.len() / 2; // First index after midpoint
-    let (first, second) = s.split_at(mid);
-    return first == second;
+fn is_repeated_n_times(s: &str, n: usize) -> bool {
+    if s.len() % n != 0 || n > s.len() {
+        return false;
+    }
+
+    let num_chunks = s.len() / n;
+
+    let chunks: Vec<String> = s
+        .chars()
+        .chunks(num_chunks)
+        .into_iter()
+        .map(|chunk| chunk.into_iter().join(""))
+        .collect();
+    let first = chunks.iter().nth(0).expect("should have first");
+    return chunks.iter().all(|it| it == first);
 }
 
 fn split_even_to_halves(n: u64) -> (u64, u64) {
@@ -72,28 +84,6 @@ impl IdRange {
             second: second.parse().ok()?,
         })
     }
-
-    // fn invalid_ids(&self) -> Vec<&str> {
-    //     let mut v: Vec<&str> = vec![];
-    //     if is_repeated(&self.first) {
-    //         v.push(&self.first);
-    //     }
-    //     if is_repeated(&self.second) {
-    //         v.push(&self.second);
-    //     }
-    //     v
-    // }
-
-    // fn invalid_sum(&self) -> u64 {
-    //     let invalid = self.invalid_ids();
-    //     invalid
-    //         .iter()
-    //         .map(|inv| {
-    //             let num: u64 = inv.parse().unwrap();
-    //             num
-    //         })
-    //         .sum()
-    // }
 }
 
 fn invalid_ids_in_range(lower: u64, upper: u64) -> Vec<u64> {
@@ -131,19 +121,52 @@ pub fn part_one(input: &str) -> Option<u64> {
     Some(invalid_sum)
 }
 
-pub fn part_two(input: &str) -> Option<u32> {
-    None
+fn is_repeated(i: usize) -> bool {
+    let n_digits = num_digits(i as u64);
+    let s = i.to_string();
+    return (2..=n_digits).any(|j| {
+        let repeated = is_repeated_n_times(&s, j as usize);
+        // println!("{} is repeated {} times", s, j);
+        repeated
+    });
+}
+
+pub fn part_two(input: &str) -> Option<u64> {
+    // Super slow solution, but it works...
+    let ranges = input
+        .split(",")
+        .map(|r| IdRange::parse(r))
+        .collect::<Option<Vec<IdRange>>>()?;
+
+    let invalid_sum: u64 = ranges
+        .iter()
+        .map(|range| {
+            let out: u64 = (range.first..=range.second)
+                .map(|i| {
+                    if is_repeated(i as usize) {
+                        // println!("{} is repeated", i);
+                        i
+                    } else {
+                        // println!("{} is not repeated", i);
+                        0
+                    }
+                })
+                .sum();
+            out
+        })
+        .sum();
+    Some(invalid_sum)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_is_repeated() {
-        assert_eq!(true, is_repeated("1010"));
-        assert_eq!(false, is_repeated("101"));
-    }
+    // #[test]
+    // fn test_is_repeated() {
+    //     assert_eq!(true, is_repeated("1010"));
+    //     assert_eq!(false, is_repeated("101"));
+    // }
 
     #[test]
     fn test_num_digits() {
@@ -194,6 +217,20 @@ mod tests {
     }
 
     #[test]
+    fn test_is_repeated_n_times() {
+        assert_eq!(true, is_repeated_n_times("1111111", 7));
+        assert_eq!(true, is_repeated_n_times("222222", 6));
+        assert_eq!(false, is_repeated_n_times("222222", 7));
+        assert_eq!(true, is_repeated_n_times("222222", 3));
+        assert_eq!(true, is_repeated_n_times("222222", 2));
+    }
+
+    #[test]
+    fn test_is_repeated() {
+        assert_eq!(false, is_repeated(565654));
+    }
+
+    #[test]
     fn test_parse() {
         let parsed = IdRange::parse("11-22").unwrap();
         assert_eq!(
@@ -213,8 +250,16 @@ mod tests {
     }
 
     #[test]
+    fn test_part_two_parts() {
+        // assert_eq!(11 + 22, part_two("11-22").unwrap());
+        // assert_eq!(99 + 111, part_two("95-115").unwrap());
+        // 998-1012 now has two invalid IDs, 999 and 1010.
+        assert_eq!(999 + 1010, part_two("998-1012").unwrap());
+    }
+
+    #[test]
     fn test_part_two() {
         let result = part_two(&advent_of_code::template::read_file("examples", DAY));
-        assert_eq!(result, None);
+        assert_eq!(result, Some(4174379265));
     }
 }
