@@ -1,7 +1,9 @@
 advent_of_code::solution!(7);
 
 use itertools::Itertools;
-use std::collections::{HashMap, HashSet, VecDeque};
+use memoize::memoize;
+use std::collections::{HashSet, VecDeque};
+use std::rc::Rc;
 
 const SPLITTER: char = '^';
 const START: char = 'S';
@@ -10,6 +12,7 @@ const EMPTY: char = '.';
 
 type Coord = (usize, usize);
 
+#[derive(Eq, Hash, PartialEq, Clone)]
 struct Board {
     tiles: Vec<Vec<char>>,
     rows: usize,
@@ -112,83 +115,35 @@ pub fn part_one(input: &str) -> Option<u64> {
     Some(num_splits)
 }
 
-struct PredecessorMap {
-    predecessors: HashMap<Coord, Vec<Coord>>,
-}
-
-impl PredecessorMap {
-    fn new() -> PredecessorMap {
-        return PredecessorMap {
-            predecessors: HashMap::new(),
-        };
-    }
-
-    fn insert_predecessor(&mut self, coord: &Coord, pred: &Coord) {
-        if let Some(vec) = self.predecessors.get_mut(coord) {
-            if !vec.contains(&pred) {
-                vec.push(*pred);
+#[memoize]
+fn timelines(board: Rc<Board>, coord: Coord) -> u64 {
+    let tile = board.maybe_tile(&coord).expect("Should find tile");
+    match tile {
+        SPLITTER => {
+            let shoulder_coords = board.shoulder_coords(&coord);
+            return shoulder_coords
+                .iter()
+                .map(move |side_coord| timelines(board.clone(), *side_coord))
+                .sum();
+        }
+        EMPTY | START => {
+            if let Some(coord_below) = board.coord_below(&coord) {
+                return timelines(board, coord_below);
             } else {
-                self.predecessors.insert(*coord, vec![*pred]);
+                // Base case - bottom
+                return 1;
             }
         }
-    }
-
-    fn has_key(&self, coord: &Coord) -> bool {
-        self.predecessors.contains_key(coord)
+        _ => {
+            panic!("Unexpected tile {}", tile)
+        }
     }
 }
 
 pub fn part_two(input: &str) -> Option<u64> {
-    // Need to find the number of timelines (cf. many worlds interpretation of quantum mechanics...)
-    // For each splitter, the number of timelines equals the sum of the number of timelines on each side
-    // Can we do this without recursion?
-    // What if we keep track of the "parents" of seen chords?
-    // Instead of skipping seen chords during traversal, we add the current as a parent
-    // Then, we can use these to walk back up the tree later using bottom-up dynamic programming
-    // Need to keep track of the accumulated number of timelines while doing this
-    // Also, we need to
-    let mut num_splits = 0;
-
     let board = Board::new(input)?;
-    let mut queue: VecDeque<Coord> = VecDeque::new();
-    let mut predecessors = PredecessorMap::new();
-
-    // Start by locating the position of S
     let start_coord = find_start(&board)?;
-    // Add S (or its position?) to the stack or queue
-    queue.push_front(start_coord);
-
-    // While there are positions in the queue
-    while let Some(current_coord) = queue.pop_front() {
-        let tile = board.maybe_tile(&current_coord).expect("Should find tile");
-        match tile {
-            SPLITTER => {
-                num_splits += 1;
-                let shoulder_coords = board.shoulder_coords(&current_coord);
-                let unseen_sides = shoulder_coords
-                    .iter()
-                    .filter(|coord| !predecessors.has_key(coord))
-                    .collect_vec();
-                for side in unseen_sides {
-                    predecessors.insert_predecessor(side, &current_coord);
-                    queue.push_front(*side);
-                }
-            }
-            EMPTY | START => {
-                if let Some(coord_below) = board.coord_below(&current_coord) {
-                    if !predecessors.has_key(&coord_below) {
-                        predecessors.insert_predecessor(&coord_below, &current_coord);
-                        queue.push_front(coord_below);
-                    }
-                }
-            }
-            _ => {
-                panic!("Unexpected tile {}", tile)
-            }
-        }
-    }
-
-    Some(num_splits)
+    Some(timelines(Rc::new(board), start_coord))
 }
 
 #[cfg(test)]
@@ -211,6 +166,6 @@ mod tests {
     #[test]
     fn test_part_two() {
         let result = part_two(&advent_of_code::template::read_file("examples", DAY));
-        assert_eq!(result, None);
+        assert_eq!(result, Some(40));
     }
 }
